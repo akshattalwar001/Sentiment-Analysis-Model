@@ -1,0 +1,48 @@
+import pandas as pd
+import numpy as np
+
+data = pd.read_csv("/kaggle/input/mmmmmmm/IMDB Dataset.csv")
+
+data.replace({"sentiment": {"positive": 1, "negative": 0}}, inplace=True)
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Embedding, LSTM
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+train_data , test_data = train_test_split(data, test_size=0.2, random_state=42)
+#Tokenize text data
+tokenizer= Tokenizer(num_words=5000)
+tokenizer.fit_on_texts(train_data["review"])
+X_train = pad_sequences(tokenizer.texts_to_sequences(train_data["review"]), maxlen=200)
+X_test = pad_sequences(tokenizer.texts_to_sequences(test_data["review"]), maxlen=200)
+y_train = train_data["sentiment"]
+y_test = test_data["sentiment"]
+#LSTM-Long Short-Term Memory
+#build the model
+model = Sequential()
+model.add(Embedding(input_dim=5000, output_dim=128, input_length=200))
+model.add(LSTM(128, dropout=0.2, recurrent_dropout=0.2))
+model.add(Dense(1, activation="sigmoid"))
+
+# Force build the model
+model.build(input_shape=(None, 100))
+#compile the model
+model.compile(optimizer="adam", loss="binary_crossentropy", metrics=['accuracy'])
+from sklearn.preprocessing import LabelEncoder
+
+# Convert string labels to numeric values
+encoder = LabelEncoder()
+y_train = encoder.fit_transform(y_train)
+
+#training the model
+model.fit(X_train, y_train, epochs=5, batch_size=64, validation_split=0.2)
+def predict_sentiment(review):
+  # tokenize and pad the review
+  sequence = tokenizer.texts_to_sequences([review])
+  padded_sequence = pad_sequences(sequence, maxlen=200)
+  prediction = model.predict(padded_sequence)
+  sentiment = "positive" if prediction[0][0] > 0.5 else "negative"
+  return sentiment
+new_review = input("Enter a review : ")
+sentiment = predict_sentiment(new_review)
+print(f"The sentiment of the review is: {sentiment}")
